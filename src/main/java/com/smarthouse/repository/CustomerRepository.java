@@ -10,6 +10,4 @@ public interface CustomerRepository extends PagingAndSortingRepository<Customer,
 
     Customer findByName(@Param("name") String name);
 
-    //Boolean exists(String email);
-    //Customer save(Customer customer);
 }

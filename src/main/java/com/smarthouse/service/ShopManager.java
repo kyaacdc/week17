@@ -19,6 +19,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.springframework.data.domain.Sort.Direction.ASC;
+import static org.springframework.data.domain.Sort.Direction.DESC;
+
 @RestController
 public class ShopManager {
 
@@ -29,6 +32,7 @@ public class ShopManager {
     private OrderItemRepository orderItemRepository;
     private VisualizationRepository visualizationRepository;
     private AttributeValueRepository attributeValueRepository;
+    private AttributeNameRepository attributeNameRepository;
 
     @Autowired
     public void setProductCardRepository(ProductCardRepository productCardRepository) {
@@ -57,6 +61,11 @@ public class ShopManager {
     @Autowired
     public void setAttributeValueRepository(AttributeValueRepository attributeValueRepository) {
         this.attributeValueRepository = attributeValueRepository;
+    }
+
+    @Autowired
+    public void setAttributeNameRepository(AttributeNameRepository attributeNameRepository) {
+        this.attributeNameRepository = attributeNameRepository;
     }
 
     public ShopManager() {
@@ -131,7 +140,7 @@ public class ShopManager {
 
         if (validateOrder(email) && customerRepository.exists(email)) {
             Customer customer = customerRepository.findOne(email);
-            List<OrderMain> ordersByCustomer = getOrdersByCustomer(customer);
+            List<OrderMain> ordersByCustomer = getOrdersByCustomer(customer.getEmail());
             List<OrderMain> resultList = new ArrayList<>();
 
             for (OrderMain om : ordersByCustomer) {
@@ -139,7 +148,7 @@ public class ShopManager {
                 if (om.getStatus() != 1)
                     continue;
 
-                List<OrderItem> orderItemsByOrderMain = getItemOrdersByOrderMain(om);
+                List<OrderItem> orderItemsByOrderMain = getItemOrdersByOrderMain(om.getOrderId());
                 for (OrderItem oi : orderItemsByOrderMain) {
                     ProductCard productCard = productCardRepository.findOne(oi.getProductCard().getSku());
                     int newAmount = productCard.getAmount() - oi.getAmount();
@@ -190,7 +199,7 @@ public class ShopManager {
      * on warehouse by String criteria, in custom place.
      *
      * @param criteria     String is  a string for the find
-     * @param placeForFind enumeration for choose sort criteria:
+     * @param place enumeration for choose sort criteria:
      *                     FIND_ALL,
      *                     FIND_BY_NAME,
      *                     FIND_IN_PROD_DESC,
@@ -198,13 +207,15 @@ public class ShopManager {
      *                     FIND_IN_CATEGORY_DESC;
      * @return Set<ProductCard> found results of products
      */
-    public Set<ProductCard> findProductsInColumn(String criteria, EnumSearcher placeForFind) {
+    @RequestMapping("/findProductsIn")
+    public Set<ProductCard> findProductsIn(
+            @RequestParam(value="criteria")String criteria,
+            @RequestParam(value="place") EnumSearcher place) {
 
         Set<ProductCard> result = new LinkedHashSet<>();
-        List<Category> categoryList;
 
-        switch (placeForFind) {
-            case FIND_BY_NAME:
+        switch (place) {
+            case FIND_IN_NAME:
                 result.addAll(productCardRepository.findByNameIgnoreCase(criteria));
                 return result;
             case FIND_IN_PROD_DESC:
@@ -219,56 +230,85 @@ public class ShopManager {
         }
     }
 
-// Methods for getting lists of various items
+    @RequestMapping("/sortProductCardBy")
+    public List<ProductCard> sortProductCardBy(
+            @RequestParam(value="categoryId") int categoryId,
+            @RequestParam(value="sortCriteria") EnumProductSorter sortCriteria) {
 
-    public List<Category> getRootCategory() {
-        return categoryRepository.findByCategory(null);
-    }
+        Category category = null;
 
-
-    public List<Category> getSubCategories(Category category) {
-        return categoryRepository.findByCategory(category);
-    }
-
-    public List<ProductCard> getProductCardsByCategory(Category category) {
-        Sort sort = new Sort(new Sort.Order(Sort.Direction.ASC, "name"));
-        return productCardRepository.findByCategory(category, sort);
-    }
-
-    public List<Visualization> getVisualListByProduct(ProductCard productCard) {
-        return visualizationRepository.findByProductCard(productCard);
-    }
-
-    public List<AttributeValue> getAttrValuesByProduct(ProductCard productCard) {
-        return attributeValueRepository.findByProductCard(productCard);
-    }
-
-    public List<AttributeValue> getAttrValuesByName(AttributeName attributeName) {
-        return attributeValueRepository.findByAttributeName(attributeName);
-    }
-
-    public List<ProductCard> sortProductCard(Category category, EnumProductSorter criteria) {
+        if(categoryId != 0)
+            category = categoryRepository.findOne(categoryId);
 
         Sort sort;
 
-        switch (criteria) {
+        switch (sortCriteria) {
             case SORT_BY_NAME:
-                sort = new Sort(new Sort.Order(Sort.Direction.ASC, "name")); break;
+                sort = new Sort(new Sort.Order(ASC, "name")); break;
             case SORT_BY_NAME_REVERSED:
-                sort = new Sort(new Sort.Order(Sort.Direction.DESC, "name")); break;
+                sort = new Sort(new Sort.Order(DESC, "name")); break;
             case SORT_BY_LOW_PRICE:
-                sort = new Sort(new Sort.Order(Sort.Direction.ASC, "price")); break;
+                sort = new Sort(new Sort.Order(ASC, "price")); break;
             case SORT_BY_HIGH_PRICE:
-                sort = new Sort(new Sort.Order(Sort.Direction.DESC, "price")); break;
+                sort = new Sort(new Sort.Order(DESC, "price")); break;
             case SORT_BY_POPULARITY:
-                sort = new Sort(new Sort.Order(Sort.Direction.ASC, "likes")); break;
+                sort = new Sort(new Sort.Order(ASC, "likes")); break;
             case SORT_BY_UNPOPULARITY:
-                sort = new Sort(new Sort.Order(Sort.Direction.ASC, "dislikes")); break;
+                sort = new Sort(new Sort.Order(ASC, "dislikes")); break;
             default:
                 throw new NoResultException();
         }
 
-        return category == null ? productCardRepository.findAllBy(sort) : productCardRepository.findByCategory(category, sort);
+        return categoryId == 0 ? productCardRepository.findAllBy(sort) : productCardRepository.findByCategory(category, sort);
+    }
+
+// Methods for getting lists of various items
+
+    @RequestMapping("/getRootCategory")
+    public List<Category> getRootCategory() {
+        return categoryRepository.findByCategory(null);
+    }
+
+    @RequestMapping("/getSubCategories")
+    public List<Category> getSubCategories(@RequestParam(value="categoryId") int categoryId) {
+        return categoryRepository.findByCategory(categoryRepository.findOne(categoryId));
+    }
+
+    @RequestMapping("/getProductCardsByCategory")
+    public List<ProductCard> getProductCardsByCategory(@RequestParam(value="categoryId") int categoryId) {
+        Sort sort = new Sort(new Sort.Order(ASC, "name"));
+        return productCardRepository.findByCategory(categoryRepository.findOne(categoryId), sort);
+    }
+
+    @RequestMapping("/getVisualListByProduct")
+    public List<Visualization> getVisualListByProduct(@RequestParam(value="productCardId") String productCardId) {
+            return visualizationRepository.findByProductCard(productCardRepository.findOne(productCardId));
+    }
+
+    @RequestMapping("/getAttrValuesByProduct")
+    public List<AttributeValue> getAttrValuesByProduct(@RequestParam(value="productCardId") String productCardId) {
+        return attributeValueRepository.findByProductCard(productCardRepository.findOne(productCardId));
+    }
+
+    @RequestMapping("/getAttrValuesByName")
+    public List<AttributeValue> getAttributeValuesByName(@RequestParam(value="attributeName") String name) {
+
+        return attributeValueRepository.findByAttributeName(attributeNameRepository.findOne(name));
+    }
+
+    @RequestMapping("/getOrdersByCustomer")
+    public List<OrderMain> getOrdersByCustomer(@RequestParam(value="email") String email) {
+        return orderMainRepository.findByCustomer(customerRepository.findOne(email));
+    }
+
+    @RequestMapping("/getItemOrdersByOrderMain")
+    public List<OrderItem> getItemOrdersByOrderMain(@RequestParam(value="orderId") int orderId) {
+        return orderItemRepository.findByOrderMain(orderMainRepository.findOne(orderId));
+    }
+
+    @RequestMapping("/getItemOrdersByProdCard")
+    public List<OrderItem> getItemOrdersByProdCard(@RequestParam(value="productCardId") String productCardId) {
+        return orderItemRepository.findByProductCard(productCardRepository.findOne(productCardId));
     }
 
     //Return product availabitity in storehouse by amount
@@ -296,10 +336,10 @@ public class ShopManager {
     public boolean validateOrder(String email) {
         boolean isExist = true;
         Customer customer = customerRepository.findOne(email);
-        List<OrderMain> ordersByCustomer = getOrdersByCustomer(customer);
+        List<OrderMain> ordersByCustomer = getOrdersByCustomer(customer.getEmail());
         l1:
         for (OrderMain om : ordersByCustomer) {
-            List<OrderItem> itemOrdersByOrderMain = getItemOrdersByOrderMain(om);
+            List<OrderItem> itemOrdersByOrderMain = getItemOrdersByOrderMain(om.getOrderId());
             for (OrderItem oi : itemOrdersByOrderMain) {
                 if (!isProductAvailable(oi.getProductCard().getSku())) {
                     isExist = false;
@@ -308,19 +348,6 @@ public class ShopManager {
             }
         }
         return isExist;
-    }
-
-
-    public List<OrderMain> getOrdersByCustomer(Customer customer) {
-        return orderMainRepository.findByCustomer(customer);
-    }
-
-    public List<OrderItem> getItemOrdersByOrderMain(OrderMain orderMain) {
-        return orderItemRepository.findByOrderMain(orderMain);
-    }
-
-    public List<OrderItem> getItemOrdersByProdCard(ProductCard productCard) {
-        return orderItemRepository.findByProductCard(productCard);
     }
 
     //Private helpful methods
@@ -332,7 +359,7 @@ public class ShopManager {
         List<Category> categoryList = categoryRepository.findByDescriptionIgnoreCase(criteria);
         if (categoryList.size() > 0) {
             for (Category c : categoryList) {
-                Sort sort = new Sort(new Sort.Order(Sort.Direction.ASC, "name"));
+                Sort sort = new Sort(new Sort.Order(ASC, "name"));
                 List<ProductCard> list = productCardRepository.findByCategory(c, sort);
                 result.addAll(list);
             }
@@ -348,7 +375,7 @@ public class ShopManager {
         List<Category> categoryList = categoryRepository.findByNameIgnoreCase(criteria);
         if (categoryList.size() > 0) {
             for (Category c : categoryList) {
-                Sort sort = new Sort(new Sort.Order(Sort.Direction.ASC, "name"));
+                Sort sort = new Sort(new Sort.Order(ASC, "name"));
                 List<ProductCard> list = productCardRepository.findByCategory(c, sort);
                 result.addAll(list);
             }

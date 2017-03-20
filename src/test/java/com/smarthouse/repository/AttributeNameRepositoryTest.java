@@ -1,6 +1,6 @@
 package com.smarthouse.repository;
 
-import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.util.NestedServletException;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -29,7 +30,7 @@ public class AttributeNameRepositoryTest {
     @Autowired
     private AttributeNameRepository attributeNameRepository;
 
-    @Before
+    @After
     public void deleteAllBeforeTests() throws Exception {
         attributeNameRepository.deleteAll();
     }
@@ -48,6 +49,13 @@ public class AttributeNameRepositoryTest {
                 "{\"name\": \"nameAttr\"}")).andExpect(
                 status().isCreated()).andExpect(
                 header().string("Location", containsString("attributeName/")));
+    }
+
+    @Test(expected = NestedServletException.class)
+    public void throwExceptionWhenIncorrectNameEntity() throws Exception {
+
+        mockMvc.perform(post("/attributeName").content(
+                "{\"name\": \"name1Attr\"}"));
     }
 
     @Test
