@@ -6,12 +6,8 @@ import org.junit.*;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.transaction.TransactionSystemException;
-
-import javax.annotation.Resource;
 import javax.persistence.NoResultException;
 import java.util.*;
 
@@ -20,10 +16,6 @@ import static com.smarthouse.service.util.enums.EnumSearcher.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
-//@RunWith(SpringJUnit4ClassRunner.class)
-//@ContextConfiguration("/app-config.xml")
-//@RunWith(SpringRunner.class)
-//@SpringBootTest
 @RunWith(SpringRunner.class)
 @SpringBootTest
 public class ShopManagerTest {
@@ -47,8 +39,8 @@ public class ShopManagerTest {
     @Autowired
     private VisualizationRepository visualizationRepository;
 
-    @Before
-    public void before() {
+    @After
+    public void after(){
         attributeValueRepository.deleteAll();
         attributeNameRepository.deleteAll();
         orderItemRepository.deleteAll();
@@ -197,6 +189,31 @@ public class ShopManagerTest {
     }
 
     @Test
+    public void shouldGetRightItemOrdersByProdCard() {
+        Category category = categoryRepository.save(new Category("desc", "name", null));
+        ProductCard productCard = productCardRepository.save(new ProductCard("111", "name", 123, 1, 1, 1, "decs", category));
+        Customer customer = customerRepository.save(new Customer("anniya@bk.ru", "Yuriy", false, "7585885"));
+        OrderMain orderMain = orderMainRepository.save(new OrderMain("OrderAddress", 1, customer));
+        OrderItem orderItem1 = orderItemRepository.save(new OrderItem(5, 555, productCard, orderMain));
+        OrderItem orderItem2 = orderItemRepository.save(new OrderItem(6, 555, productCard, orderMain));
+        OrderItem orderItem3 = orderItemRepository.save(new OrderItem(7, 555, productCard, orderMain));
+
+        //Save to DB
+        orderItemRepository.save(orderItem1);
+        orderItemRepository.save(orderItem2);
+        orderItemRepository.save(orderItem3);
+
+        List<OrderItem> orderItems = orderItemRepository.findByProductCard(productCard);
+
+        for (OrderItem o : orderItems) {
+            assertThat(o.getAmount(), oneOf(5, 6, 7));
+            assertThat(orderItems, is(notNullValue()));
+            assertThat(orderItems, is(anything()));
+            assertThat(orderItems.get(0), isA(OrderItem.class));
+        }
+    }
+
+    @Test
     public void shouldCorrectGetItemOrdersByProdCard() {
         Category category = categoryRepository.save(new Category("desc", "name", null));
         ProductCard productCard = productCardRepository.save(new ProductCard("111", "name", 123, 1, 1, 1, "decs", category));
@@ -257,7 +274,7 @@ public class ShopManagerTest {
         productCardRepository.save(productCard1);
         productCardRepository.save(productCard2);
 
-        Set<ProductCard> allProducts = shopManager.findProductsInColumn("naMe111", FIND_BY_NAME);
+        Set<ProductCard> allProducts = shopManager.findProductsIn("naMe111", FIND_IN_NAME);
         assertThat(allProducts.size(), is(equalTo(2)));
     }
 
@@ -274,7 +291,7 @@ public class ShopManagerTest {
         productCardRepository.save(productCard1);
         productCardRepository.save(productCard2);
 
-        Set<ProductCard> allProducts = shopManager.findProductsInColumn("xXx", FIND_IN_PROD_DESC);
+        Set<ProductCard> allProducts = shopManager.findProductsIn("xXx", FIND_IN_PROD_DESC);
         assertThat(allProducts.size(), is(equalTo(2)));
     }
 
@@ -291,7 +308,7 @@ public class ShopManagerTest {
         productCardRepository.save(productCard1);
         productCardRepository.save(productCard2);
 
-        Set<ProductCard> allProducts = shopManager.findProductsInColumn("DESC", FIND_IN_CATEGORY_DESC);
+        Set<ProductCard> allProducts = shopManager.findProductsIn("DESC", FIND_IN_CATEGORY_DESC);
         assertThat(allProducts.size(), is(equalTo(2)));
     }
 
@@ -308,13 +325,13 @@ public class ShopManagerTest {
         productCardRepository.save(productCard1);
         productCardRepository.save(productCard2);
 
-        Set<ProductCard> allProducts = shopManager.findProductsInColumn("naMe111", FIND_BY_NAME);
+        Set<ProductCard> allProducts = shopManager.findProductsIn("naMe111", FIND_IN_NAME);
         assertThat(allProducts.size(), is(equalTo(2)));
-        allProducts = shopManager.findProductsInColumn("xXx", FIND_IN_PROD_DESC);
+        allProducts = shopManager.findProductsIn("xXx", FIND_IN_PROD_DESC);
         assertThat(allProducts.size(), is(equalTo(2)));
-        allProducts = shopManager.findProductsInColumn("DESC", FIND_IN_CATEGORY_DESC);
+        allProducts = shopManager.findProductsIn("DESC", FIND_IN_CATEGORY_DESC);
         assertThat(allProducts.size(), is(equalTo(2)));
-        allProducts = shopManager.findProductsInColumn("naMe", FIND_IN_CATEGORY_NAME);
+        allProducts = shopManager.findProductsIn("naMe", FIND_IN_CATEGORY_NAME);
         assertThat(allProducts.size(), is(equalTo(2)));
     }
 
@@ -337,7 +354,8 @@ public class ShopManagerTest {
         Category category2 = new Category("desc", "name", category1);
         categoryRepository.save(category2);
 
-        List<Category> list = shopManager.getSubCategories(categoryRepository.findOne(category1.getId()));
+        //List<Category> list = shopManager.getSubCategories(categoryRepository.findOne(category1.getId()));
+        List<Category> list = shopManager.getSubCategories(category1.getId());
         assertThat(list.get(0).getName(), oneOf("catname1", "catname31", "name"));
         assertThat(list.get(0).getId(), isA(Integer.class));
     }
@@ -356,7 +374,7 @@ public class ShopManagerTest {
         productCard2 = productCardRepository.save(productCard2);
         productCard3 = productCardRepository.save(productCard3);
 
-        List<ProductCard> productCards = shopManager.getProductCardsByCategory(category);
+        List<ProductCard> productCards = shopManager.getProductCardsByCategory(category.getId());
 
         assertThat(productCard1.getName(), is (equalTo("2name")));
         assertThat(productCard2.getName(), is (equalTo("3name")));
@@ -382,7 +400,8 @@ public class ShopManagerTest {
         visualization2 = visualizationRepository.save(visualization2);
         visualization3 = visualizationRepository.save(visualization3);
 
-        List<Visualization> visualizations = shopManager.getVisualListByProduct(productCard);
+        List<Visualization> visualizations = shopManager.getVisualListByProduct(productCard.getSku());
+        //List<Visualization> visualizations = visualizationRepository.findByProductCard(productCard.getSku());
 
         assertThat(visualizations, is(notNullValue()));
         assertThat(visualizations, is(anything()));
@@ -407,7 +426,7 @@ public class ShopManagerTest {
         attributeValue = new AttributeValue("3", attributeName, productCard);
         attributeValueRepository.save(attributeValue);
 
-        List<AttributeValue> list = shopManager.getAttrValuesByProduct(productCardRepository.findOne("222"));
+        List<AttributeValue> list = shopManager.getAttrValuesByProduct("222");
 
         list.forEach(a -> {
             assertThat(a.getValue(), oneOf("1", "2", "3"));
@@ -432,7 +451,7 @@ public class ShopManagerTest {
         attributeValue = new AttributeValue("3", attributeName, productCard);
         attributeValueRepository.save(attributeValue);
 
-        List<AttributeValue> list = shopManager.getAttrValuesByName(attributeNameRepository.save(attributeName));
+        List<AttributeValue> list = shopManager.getAttributeValuesByName(attributeNameRepository.save(attributeName).getName());
 
         list.forEach(a -> {
             assertThat(a.getValue(), oneOf("1", "2", "3"));
@@ -444,6 +463,8 @@ public class ShopManagerTest {
 
     @Test
     public void shouldRightSortProductsByPopularity() throws Exception {
+
+        productCardRepository.deleteAll();
 
         Category category = new Category("desc", "name", null);
         category = categoryRepository.save(category);
@@ -461,7 +482,7 @@ public class ShopManagerTest {
         productCard = new ProductCard("444", "4name", 4444, 34, 4, 4, "xxx", subCategory);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards = shopManager.sortProductCard(null, SORT_BY_POPULARITY);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(0, SORT_BY_POPULARITY);
         assertThat(productCards.get(3).getLikes(), is(equalTo(4)));
         for(ProductCard p: productCards)
             assertThat(p.getLikes(), oneOf(1,2,3,4));
@@ -486,7 +507,7 @@ public class ShopManagerTest {
         productCard = new ProductCard("444", "4name", 4444, 34, 4, 4, "xxx", subCategory);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards = shopManager.sortProductCard(category, SORT_BY_POPULARITY);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(category.getId(), SORT_BY_POPULARITY);
         assertThat(productCards.get(2).getLikes(), is(equalTo(3)));
         for(ProductCard p: productCards)
             assertThat(p.getLikes(), oneOf(1,2,3));
@@ -511,7 +532,7 @@ public class ShopManagerTest {
         productCard = new ProductCard("444", "4name", 4444, 34, 4, 4, "xxx", subCategory);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards = shopManager.sortProductCard(null, SORT_BY_UNPOPULARITY);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(0, SORT_BY_UNPOPULARITY);
         assertThat(productCards.get(1).getDislikes(), is(equalTo(2)));
         for(ProductCard p: productCards)
             assertThat(p.getDislikes(), oneOf(1,2,3,4));
@@ -536,7 +557,7 @@ public class ShopManagerTest {
         productCard = new ProductCard("444", "4name", 4444, 34, 4, 4, "xxx", subCategory);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards = shopManager.sortProductCard(category, SORT_BY_UNPOPULARITY);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(category.getId(), SORT_BY_UNPOPULARITY);
         assertThat(productCards.get(2).getDislikes(), is(equalTo(3)));
         for(ProductCard p: productCards)
             assertThat(p.getDislikes(), oneOf(1,2,3));
@@ -561,7 +582,7 @@ public class ShopManagerTest {
         productCard = new ProductCard("444", "4name", 4444, 34, 4, 4, "xxx", subCategory);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards = shopManager.sortProductCard(null, SORT_BY_NAME);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(0, SORT_BY_NAME);
         assertThat(productCards.get(1).getName(), is(equalTo("2name")));
     }
 
@@ -577,7 +598,7 @@ public class ShopManagerTest {
         ProductCard productCard = new ProductCard("333", "3name", 2222, 34, 3, 3, "xxx", category);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards = shopManager.sortProductCard(category, SORT_BY_NAME);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(category.getId(), SORT_BY_NAME);
         assertEquals(productCards.get(0).getName(), "3name");
     }
 
@@ -601,7 +622,7 @@ public class ShopManagerTest {
         productCardRepository.save(productCard);
 
 
-        List<ProductCard> productCards = shopManager.sortProductCard(category, SORT_BY_NAME_REVERSED);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(category.getId(), SORT_BY_NAME_REVERSED);
         assertThat(productCards.get(1).getName(), is(equalTo("2name")));
     }
 
@@ -625,7 +646,7 @@ public class ShopManagerTest {
         productCardRepository.save(productCard);
 
 
-        List<ProductCard> productCards = shopManager.sortProductCard(null, SORT_BY_NAME_REVERSED);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(0, SORT_BY_NAME_REVERSED);
         assertThat(productCards.get(1).getName(), is(equalTo("3name")));
     }
 
@@ -648,7 +669,7 @@ public class ShopManagerTest {
         productCard = new ProductCard("444", "4name", 44444, 34, 4, 4, "xxx", subCategory);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards = shopManager.sortProductCard(null, SORT_BY_HIGH_PRICE);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(0, SORT_BY_HIGH_PRICE);
         assertThat(productCards.get(0).getPrice(), is(equalTo(44444)));
     }
 
@@ -671,7 +692,7 @@ public class ShopManagerTest {
         productCard = new ProductCard("444", "4name", 44444, 34, 4, 4, "xxx", subCategory);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards =  shopManager.sortProductCard(null, SORT_BY_LOW_PRICE);
+        List<ProductCard> productCards =  shopManager.sortProductCardBy(0, SORT_BY_LOW_PRICE);
         assertThat(productCards.get(0).getPrice(), is(equalTo(11111)));
     }
 
@@ -694,7 +715,7 @@ public class ShopManagerTest {
         productCard = new ProductCard("444", "4name", 44444, 34, 4, 4, "xxx", subCategory);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards = shopManager.sortProductCard(category, SORT_BY_HIGH_PRICE);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(category.getId(), SORT_BY_HIGH_PRICE);
         assertThat(productCards.get(1).getPrice(), is(equalTo(22222)));
     }
 
@@ -717,7 +738,7 @@ public class ShopManagerTest {
         productCard = new ProductCard("444", "4name", 44444, 34, 4, 4, "xxx", subCategory);
         productCardRepository.save(productCard);
 
-        List<ProductCard> productCards = shopManager.sortProductCard(category, SORT_BY_LOW_PRICE);
+        List<ProductCard> productCards = shopManager.sortProductCardBy(category.getId(), SORT_BY_LOW_PRICE);
         assertThat(productCards.get(1).getPrice(), is(equalTo(22222)));
     }
 

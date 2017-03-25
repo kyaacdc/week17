@@ -9,5 +9,6 @@ import java.util.List;
 
 @RepositoryRestResource(collectionResourceRel = "visualization", path = "visualization")
 public interface VisualizationRepository extends PagingAndSortingRepository<Visualization, Integer> {
+
     List<Visualization> findByProductCard(ProductCard productCard);
 }

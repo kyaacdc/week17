@@ -1,6 +1,6 @@
 package com.smarthouse.repository;
 
-import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +35,7 @@ public class OrderMainRepositoryTest {
     @Autowired
     private OrderItemRepository orderItemRepository;
 
-    @Before
+    @After
     public void deleteAllBeforeTests() throws Exception {
         orderItemRepository.deleteAll();
         orderMainRepository.deleteAll();

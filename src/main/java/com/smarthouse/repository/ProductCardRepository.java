@@ -13,8 +13,8 @@ import java.util.List;
 public interface ProductCardRepository extends PagingAndSortingRepository<ProductCard, String> {
 
     List<ProductCard> findByNameIgnoreCase(@Param("name") String name);
+
     List<ProductCard> findByProductDescriptionIgnoreCase(String productDescription);
-    //List<ProductCard> findByCategory(Category category);
     List<ProductCard> findByCategory(Category category, Sort sort);
     List<ProductCard> findAllBy(Sort sort);
 }

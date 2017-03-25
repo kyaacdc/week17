@@ -1,6 +1,6 @@
 package com.smarthouse.repository;
 
-import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +30,7 @@ public class CustomerRepositoryTest {
     @Autowired
     private CustomerRepository customerRepository;
 
-    @Before
+    @After
     public void deleteAllBeforeTests() throws Exception {
         customerRepository.deleteAll();
     }
@@ -92,7 +92,7 @@ public class CustomerRepositoryTest {
         mockMvc.perform(
                 get("/customer/search/findByName?name={name}", "Yuriy")).andExpect(
                 status().isOk()).andExpect(
-                jsonPath("$.name").value(        //jsonPath("$._embedded.customer[0].name").value(
+                jsonPath("$._embedded.customer[0].name").value(        //jsonPath("$._embedded.customer[0].name").value(
                         "Yuriy"));
     }
 

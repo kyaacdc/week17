@@ -1,7 +1,7 @@
 package com.smarthouse.repository;
 
 import com.smarthouse.pojo.Customer;
-import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +19,7 @@ public class CustomerRepositoryTestNoMock {
     @Autowired
     private CustomerRepository customerRepository;
 
-    @Before
+    @After
     public void before() {
         customerRepository.deleteAll();
     }
